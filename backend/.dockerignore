@@ -1,0 +1,14 @@
+.env
+.env.*
+.git
+.github
+.idea
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+pytest-cache-files-*
+tests
+test_main.http
+ml_training
+README.md

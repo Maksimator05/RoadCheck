@@ -1,0 +1,59 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Alembic
+# (versions/ отслеживается, но кеш — нет)
+alembic/__pycache__/
+
+# ML models & weights
+*.onnx
+*.weights
+models/
+
+# ML training data & artifacts
+ml_training/rdd2022_raw/
+ml_training/dataset_yolo/
+ml_training/runs/
+ml_training/*.pt
+
+# Uploads / temp files
+uploads/
+temp/
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

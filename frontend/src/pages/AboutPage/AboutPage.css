@@ -1,0 +1,163 @@
+.about-page {
+  padding: 0;
+}
+
+.about-hero {
+  text-align: center;
+  padding: 60px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 60px;
+}
+
+.about-logo {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 24px;
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-letters {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.about-title {
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.about-subtitle {
+  max-width: 700px;
+  margin: 0 auto;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.about-section {
+  margin-bottom: 80px;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.step-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 32px;
+  position: relative;
+}
+
+.step-card--wide {
+  grid-column: span 2;
+}
+
+.step-number {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0.2;
+}
+
+.step-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-right: 60px;
+}
+
+.step-description {
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.defects-types {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.defect-type-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.defect-type-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.defect-type-header.critical .defect-type-icon {
+  color: var(--defect-critical);
+}
+
+.defect-type-header.warning .defect-type-icon {
+  color: var(--defect-warning);
+}
+
+.defect-type-header.info .defect-type-icon {
+  color: var(--defect-info);
+}
+
+.defect-type-icon {
+  font-size: 24px;
+}
+
+.defect-type-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.defect-type-card p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.defect-type-severity {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.defect-type-card .defect-type-severity {
+  background: rgba(255, 68, 68, 0.2);
+  color: var(--defect-critical);
+}
+
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.tech-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px 20px;
+  font-size: 14px;
+  font-family: var(--mono);
+}

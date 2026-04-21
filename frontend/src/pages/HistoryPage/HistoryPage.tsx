@@ -22,7 +22,9 @@ export function HistoryPage() {
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<AnalysisItem | null>(null)
 
   async function loadHistory() {
     if (!tokens?.accessToken) {
@@ -79,6 +81,7 @@ export function HistoryPage() {
     }
 
     setBusyId(item.id)
+    setMessage('')
 
     try {
       const blob = await apiRequest<Blob>(`/history/${item.id}/pdf`, {
@@ -95,6 +98,8 @@ export function HistoryPage() {
   }
 
   function handleDownloadJson(item: AnalysisItem) {
+    setMessage('')
+
     const blob = new Blob(
       [
         JSON.stringify(
@@ -114,21 +119,35 @@ export function HistoryPage() {
     downloadBlob(blob, `${item.filename.replace(/\.[^.]+$/, '') || 'analysis'}.json`)
   }
 
-  async function handleDelete(item: AnalysisItem) {
-    if (!tokens?.accessToken || !window.confirm(`Удалить анализ "${item.filename}"?`)) {
+  function handleDelete(item: AnalysisItem) {
+    setError('')
+    setMessage('')
+    setPendingDelete(item)
+  }
+
+  async function confirmDelete() {
+    if (!tokens?.accessToken || !pendingDelete) {
       return
     }
 
-    setBusyId(item.id)
+    const currentItem = pendingDelete
+    setBusyId(currentItem.id)
 
     try {
-      await apiRequest<void>(`/history/${item.id}`, {
+      await apiRequest<void>(`/history/${currentItem.id}`, {
         method: 'DELETE',
         token: tokens.accessToken,
         responseType: 'void',
       })
 
-      await loadHistory()
+      setPendingDelete(null)
+      setMessage(`Анализ "${currentItem.filename}" удалён из истории.`)
+
+      if (history.items.length === 1 && page > 0) {
+        setPage((currentPage) => Math.max(0, currentPage - 1))
+      } else {
+        await loadHistory()
+      }
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, 'Не удалось удалить анализ.'))
     } finally {
@@ -154,6 +173,7 @@ export function HistoryPage() {
         </div>
 
         {error ? <div className="status-message status-message--error">{error}</div> : null}
+        {message ? <div className="status-message status-message--success">{message}</div> : null}
 
         {loading ? (
           <div className="card page-state">Загружаем историю...</div>
@@ -177,9 +197,7 @@ export function HistoryPage() {
                   </div>
 
                   <div className="history-item__defects">
-                    <span className={`defect-badge defect-${tone}`}>
-                      {getDefectSummary(item.result.count)}
-                    </span>
+                    <span className={`defect-badge defect-${tone}`}>{getDefectSummary(item.result.count)}</span>
                   </div>
 
                   <div className="history-item__actions">
@@ -221,6 +239,38 @@ export function HistoryPage() {
           </button>
         </div>
       </div>
+
+      {pendingDelete ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setPendingDelete(null)}>
+          <div
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-analysis-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="delete-analysis-title" className="confirm-dialog__title">
+              Удалить анализ?
+            </h2>
+            <p className="confirm-dialog__text">
+              Запись <strong>{pendingDelete.filename}</strong> исчезнет из истории. Файл отчёта потом
+              нужно будет сформировать заново.
+            </p>
+            <div className="confirm-dialog__actions">
+              <button className="btn" onClick={() => setPendingDelete(null)} disabled={busyId === pendingDelete.id}>
+                Отмена
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => void confirmDelete()}
+                disabled={busyId === pendingDelete.id}
+              >
+                {busyId === pendingDelete.id ? 'Удаляем...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

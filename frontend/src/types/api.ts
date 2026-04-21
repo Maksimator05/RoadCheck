@@ -27,6 +27,8 @@ export interface AnalysisResult {
   defects: Defect[]
   count: number
   processing_ms: number
+  image_width?: number
+  image_height?: number
 }
 
 export interface AnalyzeResponse extends AnalysisResult {

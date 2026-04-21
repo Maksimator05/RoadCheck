@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { apiRequest, getErrorMessage } from '../../lib/api'
 import {
@@ -8,13 +8,27 @@ import {
   getRoadScore,
   getRoadStatus,
 } from '../../lib/road'
-import type { AnalyzeResponse, ProfileStats } from '../../types/api'
+import type { AnalyzeResponse, Defect, ProfileStats } from '../../types/api'
 import './DashboardPage.css'
+
+function getPotholeSummary(count: number): string {
+  if (count === 1) {
+    return 'Найдена 1 яма'
+  }
+
+  if (count >= 2 && count <= 4) {
+    return `Найдено ${count} ямы`
+  }
+
+  return `Найдено ${count} ям`
+}
 
 export function DashboardPage() {
   const { tokens } = useAuth()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState('')
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null)
+  const [analysisMessage, setAnalysisMessage] = useState('')
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [analysisError, setAnalysisError] = useState('')
   const [statsError, setStatsError] = useState('')
@@ -45,10 +59,26 @@ export function DashboardPage() {
     void loadStats()
   }, [tokens?.accessToken])
 
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl('')
+      return
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(selectedFile)
+    setPreviewUrl(nextPreviewUrl)
+
+    return () => {
+      URL.revokeObjectURL(nextPreviewUrl)
+    }
+  }, [selectedFile])
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
+    setAnalysis(null)
     setAnalysisError('')
+    setAnalysisMessage('')
   }
 
   async function handleAnalyze() {
@@ -56,6 +86,8 @@ export function DashboardPage() {
       return
     }
 
+    setAnalysis(null)
+    setAnalysisMessage('')
     setAnalysisError('')
     setIsAnalyzing(true)
 
@@ -69,6 +101,16 @@ export function DashboardPage() {
         body: formData,
       })
 
+      const potholeCount = result.defects.filter((defect) => defect.type === 'pothole').length
+
+      if (potholeCount > 0) {
+        setAnalysisMessage(`${getPotholeSummary(potholeCount)}. Ямы отмечены и пронумерованы на снимке.`)
+      } else if (result.count > 0) {
+        setAnalysisMessage('Дефекты обнаружены и отмечены на снимке.')
+      } else {
+        setAnalysisMessage('На фото заметных дефектов не найдено.')
+      }
+
       setAnalysis(result)
       await loadStats()
     } catch (error) {
@@ -78,10 +120,28 @@ export function DashboardPage() {
     }
   }
 
+  function getMarkerStyle(defect: Defect): CSSProperties {
+    const [x1, y1, x2, y2] = defect.bbox
+    const imageWidth = analysis?.image_width || 0
+    const imageHeight = analysis?.image_height || 0
+
+    if (!imageWidth || !imageHeight) {
+      return {}
+    }
+
+    return {
+      left: `${(x1 / imageWidth) * 100}%`,
+      top: `${(y1 / imageHeight) * 100}%`,
+      width: `${((x2 - x1) / imageWidth) * 100}%`,
+      height: `${((y2 - y1) / imageHeight) * 100}%`,
+    }
+  }
+
   const roadScore = analysis ? getRoadScore(analysis.defects) : null
   const roadStatus = roadScore !== null ? getRoadStatus(roadScore) : null
   const defectDistribution = Object.entries(stats?.by_type ?? {}).sort((left, right) => right[1] - left[1])
   const maxDistributionValue = defectDistribution[0]?.[1] ?? 1
+  const canRenderOverlay = Boolean(previewUrl && analysis?.image_width && analysis?.image_height)
 
   return (
     <div className="dashboard-page">
@@ -91,10 +151,12 @@ export function DashboardPage() {
             <div className="upload-card">
               <h2 className="section-title">Загрузите фото дорожного покрытия</h2>
               <p className="section-subtitle">
-                Система проверит покрытие, оценит его состояние в процентах и покажет найденные дефекты.
+                Система проверит покрытие, оценит его состояние в процентах и покажет найденные
+                дефекты.
               </p>
 
               {analysisError ? <div className="status-message status-message--error">{analysisError}</div> : null}
+              {analysisMessage ? <div className="status-message status-message--success">{analysisMessage}</div> : null}
 
               <div className="upload-area">
                 <input
@@ -116,6 +178,14 @@ export function DashboardPage() {
                   <div className="file-item">
                     <span className="file-name">{selectedFile.name}</span>
                     <span className="file-size">{(selectedFile.size / 1024 / 1024).toFixed(2)} МБ</span>
+                  </div>
+                </div>
+              ) : null}
+
+              {previewUrl && !analysis ? (
+                <div className="upload-preview">
+                  <div className="analysis-preview__stage analysis-preview__stage--compact">
+                    <img className="analysis-preview__image" src={previewUrl} alt="Предпросмотр дороги" />
                   </div>
                 </div>
               ) : null}
@@ -148,14 +218,50 @@ export function DashboardPage() {
                   <span className="quality-pill">{analysis.processing_ms} мс</span>
                 </div>
 
+                {previewUrl ? (
+                  <div className="analysis-preview">
+                    <div className="analysis-preview__stage">
+                      <img className="analysis-preview__image" src={previewUrl} alt="Результат анализа дороги" />
+                      {canRenderOverlay
+                        ? analysis.defects.map((defect, index) => (
+                            <div
+                              key={`${defect.type}-${index}`}
+                              className={`analysis-marker ${
+                                defect.type === 'pothole'
+                                  ? 'analysis-marker--pothole'
+                                  : 'analysis-marker--secondary'
+                              }`}
+                              style={getMarkerStyle(defect)}
+                              title={`${getDefectLabel(defect.type)} №${index + 1}`}
+                            >
+                              <span className="analysis-marker__badge">№{index + 1}</span>
+                              <span className="analysis-marker__label">{getDefectLabel(defect.type)}</span>
+                            </div>
+                          ))
+                        : null}
+                    </div>
+                    <p className="analysis-preview__caption">
+                      {analysis.count
+                        ? 'Контуры поверх фото показывают найденные дефекты, а номера помогают быстро сопоставить их со списком ниже.'
+                        : 'Фото без выделенных дефектов: система не нашла заметных ям и трещин на этом снимке.'}
+                    </p>
+                  </div>
+                ) : null}
+
                 {analysis.defects.length ? (
                   <div className="defect-list">
                     {analysis.defects.map((defect, index) => (
                       <div key={`${defect.type}-${index}`} className="defect-card">
                         <div className="defect-card__meta">
-                          <span className="defect-card__title">{getDefectLabel(defect.type)}</span>
+                          <span className="defect-card__title">
+                            №{index + 1}. {getDefectLabel(defect.type)}
+                          </span>
                           <span className={`defect-card__severity defect-card__severity--${defect.severity}`}>
-                            {defect.severity === 'high' ? 'Критично' : defect.severity === 'medium' ? 'Средне' : 'Низкий риск'}
+                            {defect.severity === 'high'
+                              ? 'Критично'
+                              : defect.severity === 'medium'
+                                ? 'Средне'
+                                : 'Низкий риск'}
                           </span>
                         </div>
                         <div className="defect-card__details">
@@ -175,7 +281,8 @@ export function DashboardPage() {
               <div className="results-card empty-state-card">
                 <h3 className="results-title">Результат появится здесь</h3>
                 <p>
-                  После анализа вы увидите процент качества дороги, типы дефектов и уверенность модели.
+                  После анализа вы увидите процент качества дороги, типы дефектов, уверенность
+                  модели и разметку найденных зон прямо поверх загруженного изображения.
                 </p>
               </div>
             )}
@@ -231,7 +338,8 @@ export function DashboardPage() {
                 </div>
               ) : (
                 <div className="empty-state">
-                  Пока нет накопленной истории. Сделайте первый анализ, и статистика появится здесь.
+                  Пока нет накопленной истории. Сделайте первый анализ, и статистика появится
+                  здесь.
                 </div>
               )}
             </div>

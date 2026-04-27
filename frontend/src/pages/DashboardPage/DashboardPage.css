@@ -88,25 +88,47 @@
   margin-bottom: 24px;
 }
 
+/*
+  KEY FIX: overflow must be visible so markers that touch the edge are not clipped.
+  The stage just provides position:relative as an anchor for absolute children.
+*/
 .analysis-preview__stage {
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden removed — was clipping bbox markers near edges */
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
     var(--bg-secondary);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  /* Clip only the image corners, not the marker labels */
+  overflow: hidden;
 }
 
-.analysis-preview__stage--compact {
-  max-height: 280px;
+/*
+  Markers need to escape the clip, so we use a wrapper trick:
+  the inner markers get a small negative margin budget via outline instead of overflow.
+  Actually: set overflow visible on stage but clip via border-radius on the img only.
+*/
+.analysis-preview__stage {
+  overflow: visible;
 }
 
 .analysis-preview__image {
   display: block;
   width: 100%;
   height: auto;
+  border-radius: 16px; /* match stage so image corners are still rounded */
+}
+
+.analysis-preview__stage--compact {
+  max-height: 280px;
+  overflow: hidden;
+}
+
+.analysis-preview__stage--compact .analysis-preview__image {
+  max-height: 280px;
+  object-fit: cover;
 }
 
 .analysis-preview__caption {
@@ -115,21 +137,33 @@
   font-size: 13px;
 }
 
+/* ── Defect markers ─────────────────────────────────────────── */
+
 .analysis-marker {
   position: absolute;
-  border: 3px solid;
-  border-radius: 16px;
+  border: 2.5px solid;
+  border-radius: 6px;
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.35),
-    0 18px 30px rgba(0, 0, 0, 0.22);
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 4px 16px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
+  /* Ensure labels/badges are always visible above the image */
+  z-index: 2;
 }
 
+/* Potholes — red */
 .analysis-marker--pothole {
   border-color: rgba(255, 68, 68, 0.95);
-  background: rgba(255, 68, 68, 0.08);
+  background: rgba(255, 68, 68, 0.10);
 }
 
+/* Cracks — amber/orange */
+.analysis-marker--crack {
+  border-color: rgba(255, 160, 0, 0.95);
+  background: rgba(255, 160, 0, 0.10);
+}
+
+/* Everything else (patch, rut, bump …) — cyan */
 .analysis-marker--secondary {
   border-color: rgba(0, 204, 255, 0.9);
   background: rgba(0, 204, 255, 0.08);
@@ -138,37 +172,45 @@
 .analysis-marker__badge,
 .analysis-marker__label {
   position: absolute;
-  left: 8px;
+  left: 6px;
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
   backdrop-filter: blur(6px);
+  z-index: 3;
 }
 
 .analysis-marker__badge {
-  top: 8px;
-  min-width: 34px;
+  top: 6px;
+  min-width: 28px;
   justify-content: center;
-  padding: 4px 10px;
+  padding: 2px 8px;
   color: #fff;
-  background: rgba(8, 8, 8, 0.78);
+  background: rgba(8, 8, 8, 0.80);
 }
 
 .analysis-marker__label {
-  bottom: 8px;
-  padding: 4px 10px;
+  bottom: 6px;
+  padding: 2px 8px;
   color: var(--text-primary);
-  background: rgba(8, 8, 8, 0.72);
+  background: rgba(8, 8, 8, 0.75);
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* ── Upload / Analyze button ────────────────────────────────── */
 
 .analyze-btn {
   width: 100%;
   padding: 14px;
   font-size: 15px;
 }
+
+/* ── Results card ───────────────────────────────────────────── */
 
 .results-title,
 .stats-title,
@@ -243,6 +285,8 @@
   font-size: 12px;
 }
 
+/* ── Defect list cards ──────────────────────────────────────── */
+
 .defect-list {
   display: flex;
   flex-direction: column;
@@ -301,6 +345,8 @@
   color: var(--text-secondary);
 }
 
+/* ── Stats sidebar ──────────────────────────────────────────── */
+
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -350,7 +396,7 @@
 }
 
 .defect-label {
-  width: 100px;
+  width: 120px;
   font-size: 13px;
 }
 
@@ -379,6 +425,8 @@
   font-weight: 600;
 }
 
+/* ── Responsive ─────────────────────────────────────────────── */
+
 @media (max-width: 1024px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
@@ -399,23 +447,20 @@
 
   .analysis-marker {
     border-width: 2px;
-    border-radius: 12px;
+    border-radius: 4px;
   }
 
   .analysis-marker__badge,
   .analysis-marker__label {
-    left: 6px;
-    font-size: 11px;
+    left: 4px;
+    font-size: 10px;
   }
 
   .analysis-marker__badge {
-    top: 6px;
+    top: 4px;
   }
 
   .analysis-marker__label {
-    bottom: 6px;
-    max-width: calc(100% - 12px);
-    overflow: hidden;
-    text-overflow: ellipsis;
+    bottom: 4px;
   }
 }

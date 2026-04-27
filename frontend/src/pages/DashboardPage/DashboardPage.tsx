@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { apiRequest, getErrorMessage } from '../../lib/api'
 import {
@@ -9,7 +9,8 @@ import {
   getRoadStatus,
 } from '../../lib/road'
 import type { AnalyzeResponse, Defect, ProfileStats } from '../../types/api'
-import './DashboardPage.css'
+// @ts-ignore
+import 'src/pages/DashboardPage/DashboardPage.css'
 
 function getPotholeSummary(count: number): string {
   if (count === 1) {
@@ -34,6 +35,10 @@ export function DashboardPage() {
   const [statsError, setStatsError] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isStatsLoading, setIsStatsLoading] = useState(true)
+
+  // Track the rendered image size so markers align correctly
+  const imageRef = useRef<HTMLImageElement>(null)
+  const [renderedSize, setRenderedSize] = useState<{ w: number; h: number } | null>(null)
 
   async function loadStats() {
     if (!tokens?.accessToken) {
@@ -73,12 +78,38 @@ export function DashboardPage() {
     }
   }, [selectedFile])
 
+  // Recalculate rendered size when analysis result arrives or window resizes
+  useEffect(() => {
+    if (!analysis) {
+      setRenderedSize(null)
+      return
+    }
+
+    function updateSize() {
+      if (imageRef.current) {
+        setRenderedSize({
+          w: imageRef.current.clientWidth,
+          h: imageRef.current.clientHeight,
+        })
+      }
+    }
+
+    // Wait a tick for the image to paint
+    const timer = setTimeout(updateSize, 50)
+    window.addEventListener('resize', updateSize)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', updateSize)
+    }
+  }, [analysis, previewUrl])
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
     setAnalysis(null)
     setAnalysisError('')
     setAnalysisMessage('')
+    setRenderedSize(null)
   }
 
   async function handleAnalyze() {
@@ -89,6 +120,7 @@ export function DashboardPage() {
     setAnalysis(null)
     setAnalysisMessage('')
     setAnalysisError('')
+    setRenderedSize(null)
     setIsAnalyzing(true)
 
     try {
@@ -120,20 +152,38 @@ export function DashboardPage() {
     }
   }
 
+  /**
+   * Convert a bbox from original-image pixel space to percentage of the
+   * *rendered* <img> element so the overlay rectangles land exactly on
+   * the right spots regardless of how the browser scales the photo.
+   */
   function getMarkerStyle(defect: Defect): CSSProperties {
     const [x1, y1, x2, y2] = defect.bbox
-    const imageWidth = analysis?.image_width || 0
-    const imageHeight = analysis?.image_height || 0
+    const origW = analysis?.image_width ?? 0
+    const origH = analysis?.image_height ?? 0
 
-    if (!imageWidth || !imageHeight) {
-      return {}
+    if (!origW || !origH) return {}
+
+    // Use actual rendered dimensions when available, fall back to percentages
+    if (renderedSize && renderedSize.w > 0 && renderedSize.h > 0) {
+      // Scale factor: how many rendered px per original px
+      const scaleX = renderedSize.w / origW
+      const scaleY = renderedSize.h / origH
+
+      return {
+        left: `${x1 * scaleX}px`,
+        top: `${y1 * scaleY}px`,
+        width: `${(x2 - x1) * scaleX}px`,
+        height: `${(y2 - y1) * scaleY}px`,
+      }
     }
 
+    // Fallback: simple percentages (good enough when image fills container)
     return {
-      left: `${(x1 / imageWidth) * 100}%`,
-      top: `${(y1 / imageHeight) * 100}%`,
-      width: `${((x2 - x1) / imageWidth) * 100}%`,
-      height: `${((y2 - y1) / imageHeight) * 100}%`,
+      left: `${(x1 / origW) * 100}%`,
+      top: `${(y1 / origH) * 100}%`,
+      width: `${((x2 - x1) / origW) * 100}%`,
+      height: `${((y2 - y1) / origH) * 100}%`,
     }
   }
 
@@ -220,8 +270,27 @@ export function DashboardPage() {
 
                 {previewUrl ? (
                   <div className="analysis-preview">
+                    {/*
+                      IMPORTANT: position:relative on the stage + the img fills it 100% wide.
+                      Markers are positioned absolutely inside the stage using px values
+                      derived from the img's clientWidth/clientHeight, so they always land
+                      on the correct spots even when the browser scales the photo.
+                    */}
                     <div className="analysis-preview__stage">
-                      <img className="analysis-preview__image" src={previewUrl} alt="Результат анализа дороги" />
+                      <img
+                        ref={imageRef}
+                        className="analysis-preview__image"
+                        src={previewUrl}
+                        alt="Результат анализа дороги"
+                        onLoad={() => {
+                          if (imageRef.current) {
+                            setRenderedSize({
+                              w: imageRef.current.clientWidth,
+                              h: imageRef.current.clientHeight,
+                            })
+                          }
+                        }}
+                      />
                       {canRenderOverlay
                         ? analysis.defects.map((defect, index) => (
                             <div
@@ -229,10 +298,12 @@ export function DashboardPage() {
                               className={`analysis-marker ${
                                 defect.type === 'pothole'
                                   ? 'analysis-marker--pothole'
-                                  : 'analysis-marker--secondary'
+                                  : defect.type === 'crack'
+                                    ? 'analysis-marker--crack'
+                                    : 'analysis-marker--secondary'
                               }`}
                               style={getMarkerStyle(defect)}
-                              title={`${getDefectLabel(defect.type)} №${index + 1}`}
+                              title={`${getDefectLabel(defect.type)} №${index + 1} (${Math.round(defect.confidence * 100)}%)`}
                             >
                               <span className="analysis-marker__badge">№{index + 1}</span>
                               <span className="analysis-marker__label">{getDefectLabel(defect.type)}</span>

@@ -1,21 +1,25 @@
 import type { AnalysisItem, Defect } from '../types/api'
 
 const defectLabels: Record<string, string> = {
+  // Specific crack subtypes from RDD2022 model
+  longitudinal_crack: 'Продольная трещина',
+  transverse_crack: 'Поперечная трещина',
+  alligator_crack: 'Сетчатая трещина',
+  // Legacy short codes (kept for backward compat with old DB records)
+  d00: 'Продольная трещина',
+  d10: 'Поперечная трещина',
+  d20: 'Сетчатая трещина',
+  d40: 'Яма',
+  // Generic types
   pothole: 'Яма',
   crack: 'Трещина',
   patch: 'Заплатка',
   patched: 'Заплатка',
   rut: 'Колея',
   bump: 'Неровность',
-  d00: 'Продольная трещина',
-  d10: 'Поперечная трещина',
-  d20: 'Сетчатая трещина',
-  d40: 'Яма',
-  longitudinal_crack: 'Продольная трещина',
-  transverse_crack: 'Поперечная трещина',
-  alligator_crack: 'Сетчатая трещина',
 }
 
+/** Penalty points per defect severity (deducted from 100-point road score) */
 const severityPenalty: Record<string, number> = {
   low: 8,
   medium: 15,
@@ -24,7 +28,7 @@ const severityPenalty: Record<string, number> = {
 
 export function getDefectLabel(type: string): string {
   const normalized = type.trim().toLowerCase()
-  return defectLabels[normalized] || normalized.replace(/_/g, ' ')
+  return defectLabels[normalized] ?? normalized.replace(/_/g, ' ')
 }
 
 export function formatDate(value: string): string {
@@ -81,14 +85,8 @@ export function getRoadStatus(score: number): {
 }
 
 export function getAnalysisTone(defectCount: number): 'ok' | 'warning' | 'critical' {
-  if (defectCount === 0) {
-    return 'ok'
-  }
-
-  if (defectCount <= 2) {
-    return 'warning'
-  }
-
+  if (defectCount === 0) return 'ok'
+  if (defectCount <= 2) return 'warning'
   return 'critical'
 }
 
@@ -104,11 +102,7 @@ export function getDisplayName(email: string): string {
 export function getInitials(email: string): string {
   const name = getDisplayName(email)
   const parts = name.split(' ').filter(Boolean)
-
-  if (!parts.length) {
-    return 'RC'
-  }
-
+  if (!parts.length) return 'RC'
   return parts
     .slice(0, 2)
     .map((part) => part.charAt(0))
@@ -118,24 +112,16 @@ export function getInitials(email: string): string {
 
 export function getRecentDefectTypes(items: AnalysisItem[]): Array<[string, number]> {
   const counts: Record<string, number> = {}
-
   for (const item of items) {
     for (const defect of item.result.defects) {
       counts[defect.type] = (counts[defect.type] || 0) + 1
     }
   }
-
   return Object.entries(counts).sort((left, right) => right[1] - left[1])
 }
 
 export function getDefectSummary(count: number): string {
-  if (count === 1) {
-    return '1 дефект'
-  }
-
-  if (count >= 2 && count <= 4) {
-    return `${count} дефекта`
-  }
-
+  if (count === 1) return '1 дефект'
+  if (count >= 2 && count <= 4) return `${count} дефекта`
   return `${count} дефектов`
 }

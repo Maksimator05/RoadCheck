@@ -8,15 +8,21 @@ from app.ml.mock import mock_predict
 
 logger = logging.getLogger(__name__)
 
-_LABEL_ALIASES = {
-    "d00": "crack",
-    "d10": "crack",
-    "d20": "crack",
+# Map raw YOLO class names → canonical display types.
+# D00/D10/D20 are distinct crack subtypes — keep them separate so the
+# frontend can colour-code and label them correctly.
+_LABEL_ALIASES: dict[str, str] = {
+    # RDD2022 codes
+    "d00": "longitudinal_crack",
+    "d10": "transverse_crack",
+    "d20": "alligator_crack",
     "d40": "pothole",
-    "alligator crack": "crack",
-    "longitudinal crack": "crack",
-    "transverse crack": "crack",
+    # Verbose names (in case another model uses them)
+    "longitudinal crack": "longitudinal_crack",
+    "transverse crack": "transverse_crack",
+    "alligator crack": "alligator_crack",
     "pothole": "pothole",
+    # Generic fallbacks
     "crack": "crack",
     "patch": "patch",
     "patched": "patch",
@@ -30,9 +36,9 @@ class InvalidImageError(ValueError):
 
 
 def _severity(confidence: float) -> str:
-    if confidence >= 0.85:
+    if confidence >= 0.75:
         return "high"
-    if confidence >= 0.60:
+    if confidence >= 0.50:
         return "medium"
     return "low"
 
@@ -81,7 +87,7 @@ def predict(image_path: str) -> dict:
         from app.ml.model import load_model
 
         model = load_model()
-        predict_kwargs = {
+        predict_kwargs: dict = {
             "source": image_path,
             "conf": settings.ML_CONFIDENCE_THRESHOLD,
             "iou": settings.ML_IOU_THRESHOLD,
@@ -92,6 +98,10 @@ def predict(image_path: str) -> dict:
 
         results = model.predict(**predict_kwargs)[0]
         defects = []
+        defects = [
+            d for d in defects
+            if d["bbox"][1] > image_height * 0.30  # y1 должен быть ниже 30% от верха
+        ]
         if results.boxes is not None:
             for box in results.boxes:
                 conf = float(box.conf[0])

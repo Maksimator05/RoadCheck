@@ -5,9 +5,13 @@ from httpx import AsyncClient
 from PIL import Image, ImageDraw
 
 
-def _fake_jpeg() -> bytes:
-    """Minimal JPEG-like bytes (enough to pass content_type check)."""
-    return b"\xff\xd8\xff\xe0" + b"\x00" * 100
+def _road_jpeg() -> bytes:
+    image = Image.new("RGB", (640, 360), (112, 112, 112))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 260, 640, 360), fill=(100, 100, 100))
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG")
+    return buffer.getvalue()
 
 
 def _road_png(*, with_pothole: bool) -> bytes:
@@ -29,7 +33,7 @@ async def test_analyze_jpeg(client: AsyncClient, auth_headers: dict):
     resp = await client.post(
         "/analyze",
         headers=auth_headers,
-        files={"file": ("photo.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
+        files={"file": ("photo.jpg", io.BytesIO(_road_jpeg()), "image/jpeg")},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -38,6 +42,8 @@ async def test_analyze_jpeg(client: AsyncClient, auth_headers: dict):
     assert "analysis_id" in data
     assert "image_width" in data
     assert "image_height" in data
+    assert data["image_width"] == 640
+    assert data["image_height"] == 360
 
 
 @pytest.mark.asyncio
@@ -54,9 +60,19 @@ async def test_analyze_unsupported_type(client: AsyncClient, auth_headers: dict)
 async def test_analyze_no_auth(client: AsyncClient):
     resp = await client.post(
         "/analyze",
-        files={"file": ("photo.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
+        files={"file": ("photo.jpg", io.BytesIO(_road_jpeg()), "image/jpeg")},
     )
     assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_analyze_invalid_image_payload(client: AsyncClient, auth_headers: dict):
+    resp = await client.post(
+        "/analyze",
+        headers=auth_headers,
+        files={"file": ("broken.jpg", io.BytesIO(b"not-a-real-image"), "image/jpeg")},
+    )
+    assert resp.status_code == 400
 
 
 @pytest.mark.asyncio

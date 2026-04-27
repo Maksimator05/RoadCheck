@@ -10,8 +10,9 @@ export function AboutPage() {
           </div>
           <h1 className="about-title">RoadCheck</h1>
           <p className="about-subtitle">
-            Система автоматической оценки состояния дорожного покрытия. 
-            Загрузите фото с регистратора или смартфона — найдём ямы, трещины и выбоины за секунды.
+            Система автоматической оценки состояния дорожного покрытия.
+            Загрузите фото с регистратора или смартфона — найдём ямы, трещины и другие заметные
+            повреждения покрытия.
           </p>
         </div>
 
@@ -31,7 +32,9 @@ export function AboutPage() {
               <div className="step-number">02</div>
               <h3 className="step-title">Нажмите «Запустить анализ»</h3>
               <p className="step-description">
-                Модель YOLOv8 обработает изображение за 300-500 мс. На фото появятся цветные рамки вокруг каждого найденного дефекта.
+                Backend запускает детекцию дефектов и возвращает координаты найденных зон. Если
+                в backend подключены веса YOLOv8, анализ выполняется реальной моделью; в режиме
+                разработки можно оставить mock-обработку.
               </p>
             </div>
             
@@ -69,10 +72,13 @@ export function AboutPage() {
             <div className="defect-type-card">
               <div className="defect-type-header info">
                 <span className="defect-type-icon">●</span>
-                <h3>Выбоина (minor)</h3>
+                <h3>Сетчатая трещина (alligator crack)</h3>
               </div>
-              <p>Небольшие углубления и неровности. Меньше всего разрушение — лёгкий ремонт.</p>
-              <span className="defect-type-severity">Легко</span>
+              <p>
+                Один из типов разрушения покрытия в датасете RDD2022. В интерфейсе такие случаи
+                объединяются с остальными трещинами в класс <code>crack</code>.
+              </p>
+              <span className="defect-type-severity">Контроль</span>
             </div>
           </div>
         </section>
@@ -80,12 +86,12 @@ export function AboutPage() {
         <section className="about-section">
           <h2 className="section-title">Технологии</h2>
           <div className="tech-grid">
-            <div className="tech-item">YOLOv8 - детекция дефектов</div>
+            <div className="tech-item">YOLOv8 / Ultralytics - детекция дефектов</div>
             <div className="tech-item">FastAPI - backend API</div>
             <div className="tech-item">Docker - деплой</div>
             <div className="tech-item">React + TypeScript - frontend</div>
             <div className="tech-item">PostgreSQL - хранение данных</div>
-            <div className="tech-item">Redis - кэширование</div>
+            <div className="tech-item">OpenCV - mock-анализ и предобработка</div>
           </div>
         </section>
       </div>

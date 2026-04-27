@@ -1,4 +1,5 @@
 import asyncio
+import os
 import uuid
 from collections.abc import AsyncGenerator
 
@@ -8,8 +9,13 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.core.config import settings
 from app.core.security import create_access_token
 from app.db.models import Base, Role, User
+from app.ml import model as ml_model
+
+# Keep backend tests deterministic regardless of the developer's local .env.
+os.environ.setdefault("USE_MOCK_ML", "true")
 
 # ---------------------------------------------------------------------------
 # SQLite async engine (in-memory) for tests
@@ -44,6 +50,17 @@ async def _setup_db():
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture(autouse=True)
+def _force_mock_ml():
+    original_use_mock = settings.USE_MOCK_ML
+    original_model = ml_model._model
+    settings.USE_MOCK_ML = True
+    ml_model._model = None
+    yield
+    settings.USE_MOCK_ML = original_use_mock
+    ml_model._model = original_model
 
 
 async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:

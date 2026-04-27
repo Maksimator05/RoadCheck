@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -7,6 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import router
 from app.core.config import settings
+from app.ml.model import get_model_status, warmup_model
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,7 +16,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="RoadCheck API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    logger.info("RoadCheck API startup initiated")
+    warmup_model()
+    ml_status = get_model_status()
+    logger.info(
+        "ML backend ready: mode=%s backend=%s loaded=%s path=%s",
+        ml_status["mode"],
+        ml_status["backend"],
+        ml_status["loaded"],
+        ml_status["model_path"],
+    )
+    yield
+
+
+app = FastAPI(title="RoadCheck API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

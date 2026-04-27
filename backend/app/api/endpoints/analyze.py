@@ -10,7 +10,8 @@ from app.api.deps import get_current_user
 from app.core.limits import get_daily_limit
 from app.db.database import get_db
 from app.db.models import User
-from app.ml.inference import predict
+from app.ml.inference import InvalidImageError, predict
+from app.ml.model import ModelConfigurationError, ModelLoadError
 from app.repositories import analysis_repo
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,19 @@ async def analyze_image(
         with os.fdopen(tmp_fd, "wb") as f:
             f.write(data)
 
-        result = predict(tmp_path)
+        try:
+            result = predict(tmp_path)
+        except InvalidImageError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+        except (ModelConfigurationError, ModelLoadError) as exc:
+            logger.exception("Analyze request failed because the ML backend is unavailable")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(exc),
+            ) from exc
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)

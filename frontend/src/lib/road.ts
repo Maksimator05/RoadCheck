@@ -7,6 +7,13 @@ const defectLabels: Record<string, string> = {
   patched: 'Заплатка',
   rut: 'Колея',
   bump: 'Неровность',
+  d00: 'Продольная трещина',
+  d10: 'Поперечная трещина',
+  d20: 'Сетчатая трещина',
+  d40: 'Яма',
+  longitudinal_crack: 'Продольная трещина',
+  transverse_crack: 'Поперечная трещина',
+  alligator_crack: 'Сетчатая трещина',
 }
 
 const severityPenalty: Record<string, number> = {
@@ -16,7 +23,8 @@ const severityPenalty: Record<string, number> = {
 }
 
 export function getDefectLabel(type: string): string {
-  return defectLabels[type] || type.replace(/_/g, ' ')
+  const normalized = type.trim().toLowerCase()
+  return defectLabels[normalized] || normalized.replace(/_/g, ' ')
 }
 
 export function formatDate(value: string): string {

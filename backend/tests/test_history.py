@@ -3,10 +3,16 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from PIL import Image, ImageDraw
 
 
-def _fake_jpeg() -> bytes:
-    return b"\xff\xd8\xff\xe0" + b"\x00" * 100
+def _road_jpeg() -> bytes:
+    image = Image.new("RGB", (640, 360), (112, 112, 112))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 260, 640, 360), fill=(100, 100, 100))
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG")
+    return buffer.getvalue()
 
 
 async def _create_analysis(client: AsyncClient, headers: dict) -> str:
@@ -14,7 +20,7 @@ async def _create_analysis(client: AsyncClient, headers: dict) -> str:
     resp = await client.post(
         "/analyze",
         headers=headers,
-        files={"file": ("road.jpg", io.BytesIO(_fake_jpeg()), "image/jpeg")},
+        files={"file": ("road.jpg", io.BytesIO(_road_jpeg()), "image/jpeg")},
     )
     return resp.json()["analysis_id"]
 

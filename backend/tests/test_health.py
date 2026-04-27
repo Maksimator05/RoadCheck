@@ -6,4 +6,8 @@ from httpx import AsyncClient
 async def test_health(client: AsyncClient):
     resp = await client.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["ml"]["mode"] == "mock"
+    assert data["ml"]["backend"] == "opencv-mock"
+    assert data["ml"]["ready"] is True

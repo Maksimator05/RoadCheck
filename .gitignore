@@ -10,7 +10,6 @@ frontend/.env
 backend/.env
 backend/.pytest_cache/
 backend/pytest-cache-files-*/
-backend/app/ml/weights/*.pt
 backend/ml_training/downloads/
 backend/ml_training/rdd2022_raw/
 backend/ml_training/dataset_yolo/

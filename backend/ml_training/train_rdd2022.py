@@ -285,6 +285,11 @@ def train_model(data_yaml_path: Path, args: argparse.Namespace, device: str) -> 
         "deterministic": True,
         "rect": args.rect,
         "single_cls": False,
+        # ── новые параметры ──────────────────────────────────────────────
+        "lr0": args.lr0,
+        "lrf": args.lrf,
+        "warmup_epochs": args.warmup_epochs,
+        "cls_pw": args.cls_pw,
     }
     if args.cache:
         train_kwargs["cache"] = args.cache
@@ -350,6 +355,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mosaic", type=float, default=1.0)
     parser.add_argument("--mixup", type=float, default=0.10)
     parser.add_argument("--copy-paste", type=float, default=0.0)
+    # ── новые аргументы ──────────────────────────────────────────────────
+    parser.add_argument("--lr0", type=float, default=0.01,
+                        help="Initial learning rate (default 0.01; recommended 0.001 for AdamW).")
+    parser.add_argument("--lrf", type=float, default=0.01,
+                        help="Final learning rate as a fraction of lr0 (used with cos-lr).")
+    parser.add_argument("--warmup-epochs", type=float, default=3.0,
+                        help="Number of warmup epochs (default 3; try 5 for mixed datasets).")
+    parser.add_argument("--cls-pw", type=float, default=0.0,
+                        help="BCE class-weight power for imbalanced datasets (e.g. 0.5).")
 
     args = parser.parse_args()
 

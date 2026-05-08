@@ -43,7 +43,7 @@ models/
 ml_training/rdd2022_raw/
 ml_training/dataset_yolo/
 ml_training/runs/
-ml_training/*.pt
+
 
 # Uploads / temp files
 uploads/
